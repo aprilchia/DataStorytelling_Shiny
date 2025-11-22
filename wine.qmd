@@ -1,0 +1,106 @@
+---
+title: "Untitled"
+format: html
+---
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(fpp3)
+library(tidyverse)
+library(gt)
+```
+
+## Load and Wrangle
+
+```{r}
+# Read CSV → tsibble with index = Month, key = Varietal
+aus_wine <- read_csv(here::here("AustralianWines.csv"), na = "*",
+                     col_types = cols(Rose = col_number()),
+                     show_col_types = FALSE) |> 
+    fill(Rose, .direction = "down") |> 
+    mutate(Month = mdy(str_replace(Month, '-', '-01-')) |> yearmonth()) 
+aus_wine <- aus_wine |>
+    pivot_longer(cols = -Month, names_to = "Varietal", values_to = "Sales") |> 
+    as_tsibble(index = Month, key = Varietal)
+
+# Filter by inputs: varietal(s), date range.
+max_date <- max(aus_wine$Month)
+min_date <- min(aus_wine$Month)
+
+filtered_data <- aus_wine %>%
+  filter(
+    Varietal %in% c("Fortified", "Red", "Rose", "sparkling", "Sweet white", "Dry white"),
+    Month >= min_date,
+    Month <= max_date
+  )
+```
+
+## Split
+
+```{r}
+# Training/validation split
+train_end <- yearmonth("1993 Dec")
+
+training <- aus_wine |> filter(Month <= train_end)
+validation <- aus_wine |> filter(Month > train_end)
+```
+
+## Model (per varietal)
+
+```{r}
+# Fit models to training data
+wine_models <- training |>
+  model(
+    TSLM = TSLM(Sales ~ trend() + season()),
+    ETS = ETS(Sales),
+    ARIMA = ARIMA(Sales)
+  )
+```
+
+## Forecast
+
+```{r}
+# Forecast on validation period
+wine_fc <- wine_models %>%
+  forecast(h = 12)
+
+# Forecast over validation window
+validation_fc <- wine_models %>%
+  forecast(new_data = validation)
+```
+
+## Evaluate
+
+```{r}
+# Training accuracy
+wine_models |>
+    accuracy() |>
+    select(Varietal, .model, RMSE, MAE, MAPE) |>
+    arrange(.model, RMSE) |>
+    gt() |> fmt_number(
+      columns = c(RMSE, MAE, MAPE),
+      decimals = 2
+    )
+```
+```{r}
+# Forecast accuracy
+wine_fc |>
+    accuracy(aus_wine) |>
+    select(Varietal, .model, RMSE, MAE, MAPE) |>
+    arrange(.model, RMSE) |>
+    gt() |> fmt_number(
+      columns = c(RMSE, MAE, MAPE),
+      decimals = 2
+    )
+```
+
+## Visualize
+
+```{r}
+cut_off <- yearmonth(min_date |> as.Date() + years(8))
+wine_fc |>
+    autoplot(aus_wine |> filter(Month >= cut_off)) +
+    labs(title = "Forecasted Wine Sales by Varietal", x = "Month", y = "Sales") +
+    facet_wrap(~ Varietal, scales = "free_y")
+```
+
