@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Australian Wine Sales Forecast"
 format: html
 ---
 
@@ -10,7 +10,12 @@ library(tidyverse)
 library(gt)
 ```
 
-## Load and Wrangle
+## Tab 1 - Overview Plot
+
+### Load and Wrangle
+
+* Inputs - varietal selection
+* Date range selection
 
 ```{r}
 # Read CSV → tsibble with index = Month, key = Varietal
@@ -35,7 +40,7 @@ filtered_data <- aus_wine %>%
   )
 ```
 
-## Split
+### Split
 
 ```{r}
 # Training/validation split
@@ -45,7 +50,25 @@ training <- aus_wine |> filter(Month <= train_end)
 validation <- aus_wine |> filter(Month > train_end)
 ```
 
-## Model (per varietal)
+### Data Visualization
+
+```{r}
+aus_wine |>
+    autoplot(Sales) +
+    geom_vline(xintercept = train_end, linetype = "dashed") +
+    labs(y = "Sales", title = "Australian Wine Sales by Varietal") +
+    facet_wrap(~ Varietal, ncol = 1, scales = "free_y") +
+    theme_minimal()
+```
+
+## Tab 2 - Modeling
+
+### Model (per varietal)
+
+Inputs:
+
+* Toggle for model types to include TSLM, ETS, and ARIMA (default off)
+* Toggle training accuracy (default off)
 
 ```{r}
 # Fit models to training data
@@ -55,9 +78,11 @@ wine_models <- training |>
     ETS = ETS(Sales),
     ARIMA = ARIMA(Sales)
   )
+
+wine_models
 ```
 
-## Forecast
+### Forecast
 
 ```{r}
 # Forecast on validation period
@@ -69,7 +94,7 @@ validation_fc <- wine_models %>%
   forecast(new_data = validation)
 ```
 
-## Evaluate
+### Evaluate
 
 ```{r}
 # Training accuracy
@@ -94,7 +119,13 @@ wine_fc |>
     )
 ```
 
-## Visualize
+## Tab 3 - Forecast 
+
+Inputs:
+
+* Users can select which model to use for forecast table
+
+### Visualize Forecast
 
 ```{r}
 cut_off <- yearmonth(min_date |> as.Date() + years(8))
@@ -104,3 +135,20 @@ wine_fc |>
     facet_wrap(~ Varietal, scales = "free_y")
 ```
 
+### Forecast Table
+
+```{r}
+final_fc <- wine_fc |>
+  as_tibble() |> 
+  filter(.model == "ETS") |>
+  select(Month, Varietal, .mean) |>
+  mutate(.mean = map_dbl(.mean, as.numeric)) |>
+  pivot_wider(names_from = Varietal, values_from = .mean) |>
+  arrange(Month) |>
+  gt() |>
+  fmt_number(
+    decimals = 0
+  )
+
+final_fc
+```
