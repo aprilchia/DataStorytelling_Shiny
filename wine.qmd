@@ -1,5 +1,5 @@
 ---
-title: "Australian Wine Sales Forecast"
+title: "Untitled"
 format: html
 ---
 
@@ -10,12 +10,7 @@ library(tidyverse)
 library(gt)
 ```
 
-## Tab 1 - Overview Plot
-
-### Load and Wrangle
-
-* Inputs - varietal selection
-* Date range selection
+## Load and Wrangle
 
 ```{r}
 # Read CSV → tsibble with index = Month, key = Varietal
@@ -29,46 +24,20 @@ aus_wine <- aus_wine |>
     as_tsibble(index = Month, key = Varietal)
 
 # Filter by inputs: varietal(s), date range.
-max_date <- max(aus_wine$Month)
-min_date <- min(aus_wine$Month)
-
-filtered_data <- aus_wine %>%
-  filter(
-    Varietal %in% c("Fortified", "Red", "Rose", "sparkling", "Sweet white", "Dry white"),
-    Month >= min_date,
-    Month <= max_date
-  )
+min_date <- as.Date(min(aus_wine$Month))
+max_date <- as.Date(max(aus_wine$Month))
 ```
 
-### Split
+## Split
 
 ```{r}
 # Training/validation split
 train_end <- yearmonth("1993 Dec")
-
 training <- aus_wine |> filter(Month <= train_end)
 validation <- aus_wine |> filter(Month > train_end)
 ```
 
-### Data Visualization
-
-```{r}
-aus_wine |>
-    autoplot(Sales) +
-    geom_vline(xintercept = train_end, linetype = "dashed") +
-    labs(y = "Sales", title = "Australian Wine Sales by Varietal") +
-    facet_wrap(~ Varietal, ncol = 1, scales = "free_y") +
-    theme_minimal()
-```
-
-## Tab 2 - Modeling
-
-### Model (per varietal)
-
-Inputs:
-
-* Toggle for model types to include TSLM, ETS, and ARIMA (default off)
-* Toggle training accuracy (default off)
+## Model (per varietal)
 
 ```{r}
 # Fit models to training data
@@ -78,77 +47,79 @@ wine_models <- training |>
     ETS = ETS(Sales),
     ARIMA = ARIMA(Sales)
   )
-
-wine_models
 ```
 
-### Forecast
+## Forecast
 
 ```{r}
-# Forecast on validation period
-wine_fc <- wine_models %>%
-  forecast(h = 12)
-
-# Forecast over validation window
-validation_fc <- wine_models %>%
-  forecast(new_data = validation)
+# Forecast using forecast(h = input$h) and also generate forecasts over the validation window for scoring.
+wine_forecasts <- wine_models |>
+  forecast(h = "12 months")
 ```
 
-### Evaluate
+Evaluate
+Visualize
+Document
 
 ```{r}
-# Training accuracy
-wine_models |>
-    accuracy() |>
-    select(Varietal, .model, RMSE, MAE, MAPE) |>
-    arrange(.model, RMSE) |>
-    gt() |> fmt_number(
-      columns = c(RMSE, MAE, MAPE),
-      decimals = 2
+# UI controls and placeholders (rendered in document)
+selectInput(
+  "varietal_select", "Select varietal(s):",
+  choices = sort(unique(aus_wine$Varietal)),
+  selected = unique(aus_wine$Varietal)[1],
+  multiple = TRUE
+)
+
+dateRangeInput(
+  "date_range", "Date range:",
+  start = min_date, end = max_date,
+  min = min_date, max = max_date,
+  format = "yyyy-mm"
+)
+
+# placeholders for plots
+plotOutput("overview_plot", height = "420px")
+plotOutput("season_plot", height = "420px")
+```
+
+```{r context="server"}
+output$overview_plot <- renderPlot({
+  req(input$varietal_select)
+  filtered <- aus_wine |>
+    filter(
+      Varietal %in% input$varietal_select,
+      Month >= yearmonth(input$date_range[1]),
+      Month <= yearmonth(input$date_range[2])
     )
-```
-```{r}
-# Forecast accuracy
-wine_fc |>
-    accuracy(aus_wine) |>
-    select(Varietal, .model, RMSE, MAE, MAPE) |>
-    arrange(.model, RMSE) |>
-    gt() |> fmt_number(
-      columns = c(RMSE, MAE, MAPE),
-      decimals = 2
+
+  ggplot(filtered, aes(x = Month, y = Sales, color = Varietal, group = Varietal)) +
+    geom_line(size = 0.8) +
+    geom_point(size = 0.9, alpha = 0.7) +
+    labs(title = "Wine sales — time series overview",
+         x = "Month", y = "Sales") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+})
+
+output$season_plot <- renderPlot({
+  req(input$varietal_select)
+  filtered <- aus_wine |>
+    filter(
+      Varietal %in% input$varietal_select,
+      Month >= yearmonth(input$date_range[1]),
+      Month <= yearmonth(input$date_range[2])
     )
-```
 
-## Tab 3 - Forecast 
-
-Inputs:
-
-* Users can select which model to use for forecast table
-
-### Visualize Forecast
-
-```{r}
-cut_off <- yearmonth(min_date |> as.Date() + years(8))
-wine_fc |>
-    autoplot(aus_wine |> filter(Month >= cut_off)) +
-    labs(title = "Forecasted Wine Sales by Varietal", x = "Month", y = "Sales") +
-    facet_wrap(~ Varietal, scales = "free_y")
-```
-
-### Forecast Table
-
-```{r}
-final_fc <- wine_fc |>
-  as_tibble() |> 
-  filter(.model == "ETS") |>
-  select(Month, Varietal, .mean) |>
-  mutate(.mean = map_dbl(.mean, as.numeric)) |>
-  pivot_wider(names_from = Varietal, values_from = .mean) |>
-  arrange(Month) |>
-  gt() |>
-  fmt_number(
-    decimals = 0
-  )
-
-final_fc
+  # If multiple varietals selected, facet by varietal; otherwise single-panel seasonal plot
+  if (length(unique(filtered$Varietal)) > 1) {
+    gg_season(filtered, Sales) +
+      facet_wrap(vars(Varietal), scales = "free_y") +
+      labs(title = "Seasonal pattern by varietal", y = "Sales") +
+      theme_minimal()
+  } else {
+    gg_season(filtered, Sales) +
+      labs(title = paste("Seasonality —", unique(filtered$Varietal)), y = "Sales") +
+      theme_minimal()
+  }
+})
 ```

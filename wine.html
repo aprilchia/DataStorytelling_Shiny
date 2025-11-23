@@ -1,0 +1,2446 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Australian Wine Sales Forecast</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="wine_files/libs/clipboard/clipboard.min.js"></script>
+<script src="wine_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="wine_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="wine_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="wine_files/libs/quarto-html/popper.min.js"></script>
+<script src="wine_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="wine_files/libs/quarto-html/anchor.min.js"></script>
+<link href="wine_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="wine_files/libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="wine_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="wine_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="wine_files/libs/bootstrap/bootstrap-d6a003b94517c951b2d65075d42fb01b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Australian Wine Sales Forecast</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="tab-1---overview-plot" class="level2">
+<h2 class="anchored" data-anchor-id="tab-1---overview-plot">Tab 1 - Overview Plot</h2>
+<section id="load-and-wrangle" class="level3">
+<h3 class="anchored" data-anchor-id="load-and-wrangle">Load and Wrangle</h3>
+<ul>
+<li>Inputs - varietal selection</li>
+<li>Date range selection</li>
+</ul>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Read CSV → tsibble with index = Month, key = Varietal</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>aus_wine <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">"AustralianWines.csv"</span>), <span class="at">na =</span> <span class="st">"*"</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>                     <span class="at">col_types =</span> <span class="fu">cols</span>(<span class="at">Rose =</span> <span class="fu">col_number</span>()),</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>                     <span class="at">show_col_types =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">fill</span>(Rose, <span class="at">.direction =</span> <span class="st">"down"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">Month =</span> <span class="fu">mdy</span>(<span class="fu">str_replace</span>(Month, <span class="st">'-'</span>, <span class="st">'-01-'</span>)) <span class="sc">|&gt;</span> <span class="fu">yearmonth</span>()) </span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>aus_wine <span class="ot">&lt;-</span> aus_wine <span class="sc">|&gt;</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="sc">-</span>Month, <span class="at">names_to =</span> <span class="st">"Varietal"</span>, <span class="at">values_to =</span> <span class="st">"Sales"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as_tsibble</span>(<span class="at">index =</span> Month, <span class="at">key =</span> Varietal)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Filter by inputs: varietal(s), date range.</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>max_date <span class="ot">&lt;-</span> <span class="fu">max</span>(aus_wine<span class="sc">$</span>Month)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>min_date <span class="ot">&lt;-</span> <span class="fu">min</span>(aus_wine<span class="sc">$</span>Month)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>filtered_data <span class="ot">&lt;-</span> aus_wine <span class="sc">%&gt;%</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    Varietal <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"Fortified"</span>, <span class="st">"Red"</span>, <span class="st">"Rose"</span>, <span class="st">"sparkling"</span>, <span class="st">"Sweet white"</span>, <span class="st">"Dry white"</span>),</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    Month <span class="sc">&gt;=</span> min_date,</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    Month <span class="sc">&lt;=</span> max_date</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="split" class="level3">
+<h3 class="anchored" data-anchor-id="split">Split</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Training/validation split</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>train_end <span class="ot">&lt;-</span> <span class="fu">yearmonth</span>(<span class="st">"1993 Dec"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>training <span class="ot">&lt;-</span> aus_wine <span class="sc">|&gt;</span> <span class="fu">filter</span>(Month <span class="sc">&lt;=</span> train_end)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>validation <span class="ot">&lt;-</span> aus_wine <span class="sc">|&gt;</span> <span class="fu">filter</span>(Month <span class="sc">&gt;</span> train_end)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="data-visualization" class="level3">
+<h3 class="anchored" data-anchor-id="data-visualization">Data Visualization</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>aus_wine <span class="sc">|&gt;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">autoplot</span>(Sales) <span class="sc">+</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> train_end, <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">y =</span> <span class="st">"Sales"</span>, <span class="at">title =</span> <span class="st">"Australian Wine Sales by Varietal"</span>) <span class="sc">+</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_wrap</span>(<span class="sc">~</span> Varietal, <span class="at">ncol =</span> <span class="dv">1</span>, <span class="at">scales =</span> <span class="st">"free_y"</span>) <span class="sc">+</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="wine_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="tab-2---modeling" class="level2">
+<h2 class="anchored" data-anchor-id="tab-2---modeling">Tab 2 - Modeling</h2>
+<section id="model-per-varietal" class="level3">
+<h3 class="anchored" data-anchor-id="model-per-varietal">Model (per varietal)</h3>
+<p>Inputs:</p>
+<ul>
+<li>Toggle for model types to include TSLM, ETS, and ARIMA (default off)</li>
+<li>Toggle training accuracy (default off)</li>
+</ul>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit models to training data</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>wine_models <span class="ot">&lt;-</span> training <span class="sc">|&gt;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">model</span>(</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">TSLM =</span> <span class="fu">TSLM</span>(Sales <span class="sc">~</span> <span class="fu">trend</span>() <span class="sc">+</span> <span class="fu">season</span>()),</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">ETS =</span> <span class="fu">ETS</span>(Sales),</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">ARIMA =</span> <span class="fu">ARIMA</span>(Sales)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>wine_models</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A mable: 6 x 4
+# Key:     Varietal [6]
+  Varietal       TSLM          ETS                              ARIMA
+  &lt;chr&gt;       &lt;model&gt;      &lt;model&gt;                            &lt;model&gt;
+1 Dry white    &lt;TSLM&gt; &lt;ETS(M,N,M)&gt; &lt;ARIMA(0,0,0)(0,1,1)[12] w/ drift&gt;
+2 Fortified    &lt;TSLM&gt; &lt;ETS(M,A,M)&gt; &lt;ARIMA(0,0,0)(2,1,1)[12] w/ drift&gt;
+3 Red          &lt;TSLM&gt; &lt;ETS(M,A,M)&gt; &lt;ARIMA(1,0,1)(0,1,1)[12] w/ drift&gt;
+4 Rose         &lt;TSLM&gt; &lt;ETS(M,A,M)&gt; &lt;ARIMA(3,0,0)(2,1,0)[12] w/ drift&gt;
+5 Sweet white  &lt;TSLM&gt; &lt;ETS(M,A,M)&gt;          &lt;ARIMA(2,0,0)(0,1,1)[12]&gt;
+6 sparkling    &lt;TSLM&gt; &lt;ETS(M,N,M)&gt; &lt;ARIMA(0,0,1)(0,1,2)[12] w/ drift&gt;</code></pre>
+</div>
+</div>
+</section>
+<section id="forecast" class="level3">
+<h3 class="anchored" data-anchor-id="forecast">Forecast</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Forecast on validation period</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>wine_fc <span class="ot">&lt;-</span> wine_models <span class="sc">%&gt;%</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">forecast</span>(<span class="at">h =</span> <span class="dv">12</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Forecast over validation window</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>validation_fc <span class="ot">&lt;-</span> wine_models <span class="sc">%&gt;%</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">forecast</span>(<span class="at">new_data =</span> validation)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="evaluate" class="level3">
+<h3 class="anchored" data-anchor-id="evaluate">Evaluate</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Training accuracy</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>wine_models <span class="sc">|&gt;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">accuracy</span>() <span class="sc">|&gt;</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(Varietal, .model, RMSE, MAE, MAPE) <span class="sc">|&gt;</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(.model, RMSE) <span class="sc">|&gt;</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">gt</span>() <span class="sc">|&gt;</span> <span class="fu">fmt_number</span>(</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">columns =</span> <span class="fu">c</span>(RMSE, MAE, MAPE),</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>      <span class="at">decimals =</span> <span class="dv">2</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="wvhujasyix" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#wvhujasyix table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#wvhujasyix thead, #wvhujasyix tbody, #wvhujasyix tfoot, #wvhujasyix tr, #wvhujasyix td, #wvhujasyix th {
+  border-style: none;
+}
+
+#wvhujasyix p {
+  margin: 0;
+  padding: 0;
+}
+
+#wvhujasyix .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#wvhujasyix .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#wvhujasyix .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#wvhujasyix .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#wvhujasyix .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#wvhujasyix .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#wvhujasyix .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#wvhujasyix .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#wvhujasyix .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#wvhujasyix .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#wvhujasyix .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#wvhujasyix .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#wvhujasyix .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#wvhujasyix .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#wvhujasyix .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#wvhujasyix .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#wvhujasyix .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#wvhujasyix .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#wvhujasyix .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wvhujasyix .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#wvhujasyix .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#wvhujasyix .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#wvhujasyix .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wvhujasyix .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#wvhujasyix .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#wvhujasyix .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#wvhujasyix .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wvhujasyix .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#wvhujasyix .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#wvhujasyix .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#wvhujasyix .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#wvhujasyix .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#wvhujasyix .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wvhujasyix .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#wvhujasyix .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wvhujasyix .gt_left {
+  text-align: left;
+}
+
+#wvhujasyix .gt_center {
+  text-align: center;
+}
+
+#wvhujasyix .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#wvhujasyix .gt_font_normal {
+  font-weight: normal;
+}
+
+#wvhujasyix .gt_font_bold {
+  font-weight: bold;
+}
+
+#wvhujasyix .gt_font_italic {
+  font-style: italic;
+}
+
+#wvhujasyix .gt_super {
+  font-size: 65%;
+}
+
+#wvhujasyix .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#wvhujasyix .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#wvhujasyix .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#wvhujasyix .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#wvhujasyix .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#wvhujasyix .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#wvhujasyix .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#wvhujasyix .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#wvhujasyix div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Varietal" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Varietal</th>
+<th id="a.model" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">.model</th>
+<th id="RMSE" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">RMSE</th>
+<th id="MAE" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">MAE</th>
+<th id="MAPE" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">MAPE</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Rose</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">19.39</td>
+<td class="gt_row gt_right" headers="MAE">13.07</td>
+<td class="gt_row gt_right" headers="MAPE">13.98</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Sweet white</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">50.59</td>
+<td class="gt_row gt_right" headers="MAE">35.58</td>
+<td class="gt_row gt_right" headers="MAPE">13.85</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Red</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">194.55</td>
+<td class="gt_row gt_right" headers="MAE">139.48</td>
+<td class="gt_row gt_right" headers="MAPE">8.95</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Fortified</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">283.03</td>
+<td class="gt_row gt_right" headers="MAE">209.55</td>
+<td class="gt_row gt_right" headers="MAPE">6.84</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Dry white</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">326.12</td>
+<td class="gt_row gt_right" headers="MAE">230.17</td>
+<td class="gt_row gt_right" headers="MAPE">7.33</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">sparkling</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">355.07</td>
+<td class="gt_row gt_right" headers="MAE">247.00</td>
+<td class="gt_row gt_right" headers="MAPE">11.06</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Rose</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">17.13</td>
+<td class="gt_row gt_right" headers="MAE">12.04</td>
+<td class="gt_row gt_right" headers="MAPE">12.25</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Sweet white</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">44.57</td>
+<td class="gt_row gt_right" headers="MAE">31.26</td>
+<td class="gt_row gt_right" headers="MAPE">12.97</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Red</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">177.65</td>
+<td class="gt_row gt_right" headers="MAE">132.50</td>
+<td class="gt_row gt_right" headers="MAPE">8.33</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Fortified</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">285.23</td>
+<td class="gt_row gt_right" headers="MAE">222.32</td>
+<td class="gt_row gt_right" headers="MAPE">7.10</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Dry white</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">318.36</td>
+<td class="gt_row gt_right" headers="MAE">243.41</td>
+<td class="gt_row gt_right" headers="MAPE">7.64</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">sparkling</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">349.91</td>
+<td class="gt_row gt_right" headers="MAE">254.85</td>
+<td class="gt_row gt_right" headers="MAPE">11.01</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Rose</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">18.46</td>
+<td class="gt_row gt_right" headers="MAE">13.11</td>
+<td class="gt_row gt_right" headers="MAPE">13.95</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Sweet white</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">100.88</td>
+<td class="gt_row gt_right" headers="MAE">81.03</td>
+<td class="gt_row gt_right" headers="MAPE">35.50</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Red</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">197.68</td>
+<td class="gt_row gt_right" headers="MAE">152.57</td>
+<td class="gt_row gt_right" headers="MAPE">10.94</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Fortified</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">286.21</td>
+<td class="gt_row gt_right" headers="MAE">222.37</td>
+<td class="gt_row gt_right" headers="MAPE">7.21</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Dry white</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">315.52</td>
+<td class="gt_row gt_right" headers="MAE">243.12</td>
+<td class="gt_row gt_right" headers="MAPE">7.74</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">sparkling</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">367.66</td>
+<td class="gt_row gt_right" headers="MAE">267.89</td>
+<td class="gt_row gt_right" headers="MAPE">11.38</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Forecast accuracy</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>wine_fc <span class="sc">|&gt;</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">accuracy</span>(aus_wine) <span class="sc">|&gt;</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(Varietal, .model, RMSE, MAE, MAPE) <span class="sc">|&gt;</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(.model, RMSE) <span class="sc">|&gt;</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">gt</span>() <span class="sc">|&gt;</span> <span class="fu">fmt_number</span>(</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">columns =</span> <span class="fu">c</span>(RMSE, MAE, MAPE),</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>      <span class="at">decimals =</span> <span class="dv">2</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="xauugmybqn" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#xauugmybqn table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#xauugmybqn thead, #xauugmybqn tbody, #xauugmybqn tfoot, #xauugmybqn tr, #xauugmybqn td, #xauugmybqn th {
+  border-style: none;
+}
+
+#xauugmybqn p {
+  margin: 0;
+  padding: 0;
+}
+
+#xauugmybqn .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#xauugmybqn .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#xauugmybqn .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#xauugmybqn .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#xauugmybqn .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#xauugmybqn .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#xauugmybqn .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#xauugmybqn .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#xauugmybqn .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#xauugmybqn .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#xauugmybqn .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#xauugmybqn .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#xauugmybqn .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#xauugmybqn .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#xauugmybqn .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#xauugmybqn .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#xauugmybqn .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#xauugmybqn .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#xauugmybqn .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xauugmybqn .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#xauugmybqn .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#xauugmybqn .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#xauugmybqn .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xauugmybqn .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#xauugmybqn .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#xauugmybqn .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#xauugmybqn .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xauugmybqn .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#xauugmybqn .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#xauugmybqn .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#xauugmybqn .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#xauugmybqn .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#xauugmybqn .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xauugmybqn .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#xauugmybqn .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xauugmybqn .gt_left {
+  text-align: left;
+}
+
+#xauugmybqn .gt_center {
+  text-align: center;
+}
+
+#xauugmybqn .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#xauugmybqn .gt_font_normal {
+  font-weight: normal;
+}
+
+#xauugmybqn .gt_font_bold {
+  font-weight: bold;
+}
+
+#xauugmybqn .gt_font_italic {
+  font-style: italic;
+}
+
+#xauugmybqn .gt_super {
+  font-size: 65%;
+}
+
+#xauugmybqn .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#xauugmybqn .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#xauugmybqn .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#xauugmybqn .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#xauugmybqn .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#xauugmybqn .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#xauugmybqn .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#xauugmybqn .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#xauugmybqn div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Varietal" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Varietal</th>
+<th id="a.model" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">.model</th>
+<th id="RMSE" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">RMSE</th>
+<th id="MAE" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">MAE</th>
+<th id="MAPE" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">MAPE</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Rose</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">9.21</td>
+<td class="gt_row gt_right" headers="MAE">8.12</td>
+<td class="gt_row gt_right" headers="MAPE">16.80</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Sweet white</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">51.27</td>
+<td class="gt_row gt_right" headers="MAE">45.49</td>
+<td class="gt_row gt_right" headers="MAPE">21.12</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Red</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">257.86</td>
+<td class="gt_row gt_right" headers="MAE">202.54</td>
+<td class="gt_row gt_right" headers="MAPE">8.63</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Fortified</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">328.50</td>
+<td class="gt_row gt_right" headers="MAE">266.46</td>
+<td class="gt_row gt_right" headers="MAPE">11.65</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">sparkling</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">461.46</td>
+<td class="gt_row gt_right" headers="MAE">363.62</td>
+<td class="gt_row gt_right" headers="MAPE">18.19</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Dry white</td>
+<td class="gt_row gt_left" headers=".model">ARIMA</td>
+<td class="gt_row gt_right" headers="RMSE">484.39</td>
+<td class="gt_row gt_right" headers="MAE">420.06</td>
+<td class="gt_row gt_right" headers="MAPE">10.26</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Rose</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">8.38</td>
+<td class="gt_row gt_right" headers="MAE">6.10</td>
+<td class="gt_row gt_right" headers="MAPE">11.07</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Sweet white</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">61.11</td>
+<td class="gt_row gt_right" headers="MAE">53.32</td>
+<td class="gt_row gt_right" headers="MAPE">24.69</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Red</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">297.16</td>
+<td class="gt_row gt_right" headers="MAE">255.37</td>
+<td class="gt_row gt_right" headers="MAPE">10.43</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Fortified</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">318.90</td>
+<td class="gt_row gt_right" headers="MAE">242.65</td>
+<td class="gt_row gt_right" headers="MAPE">10.24</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">sparkling</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">444.48</td>
+<td class="gt_row gt_right" headers="MAE">338.62</td>
+<td class="gt_row gt_right" headers="MAPE">17.58</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Dry white</td>
+<td class="gt_row gt_left" headers=".model">ETS</td>
+<td class="gt_row gt_right" headers="RMSE">562.69</td>
+<td class="gt_row gt_right" headers="MAE">510.79</td>
+<td class="gt_row gt_right" headers="MAPE">12.71</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Rose</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">9.19</td>
+<td class="gt_row gt_right" headers="MAE">7.59</td>
+<td class="gt_row gt_right" headers="MAPE">16.42</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Sweet white</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">112.76</td>
+<td class="gt_row gt_right" headers="MAE">104.20</td>
+<td class="gt_row gt_right" headers="MAPE">47.74</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">Red</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">319.28</td>
+<td class="gt_row gt_right" headers="MAE">249.00</td>
+<td class="gt_row gt_right" headers="MAPE">11.79</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Fortified</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">426.53</td>
+<td class="gt_row gt_right" headers="MAE">362.69</td>
+<td class="gt_row gt_right" headers="MAPE">16.25</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Varietal">sparkling</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">459.05</td>
+<td class="gt_row gt_right" headers="MAE">353.39</td>
+<td class="gt_row gt_right" headers="MAPE">19.10</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Varietal">Dry white</td>
+<td class="gt_row gt_left" headers=".model">TSLM</td>
+<td class="gt_row gt_right" headers="RMSE">556.28</td>
+<td class="gt_row gt_right" headers="MAE">497.74</td>
+<td class="gt_row gt_right" headers="MAPE">12.37</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="tab-3---forecast" class="level2">
+<h2 class="anchored" data-anchor-id="tab-3---forecast">Tab 3 - Forecast</h2>
+<p>Inputs:</p>
+<ul>
+<li>Users can select which model to use for forecast table</li>
+</ul>
+<section id="visualize-forecast" class="level3">
+<h3 class="anchored" data-anchor-id="visualize-forecast">Visualize Forecast</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>cut_off <span class="ot">&lt;-</span> <span class="fu">yearmonth</span>(min_date <span class="sc">|&gt;</span> <span class="fu">as.Date</span>() <span class="sc">+</span> <span class="fu">years</span>(<span class="dv">8</span>))</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>wine_fc <span class="sc">|&gt;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">autoplot</span>(aus_wine <span class="sc">|&gt;</span> <span class="fu">filter</span>(Month <span class="sc">&gt;=</span> cut_off)) <span class="sc">+</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Forecasted Wine Sales by Varietal"</span>, <span class="at">x =</span> <span class="st">"Month"</span>, <span class="at">y =</span> <span class="st">"Sales"</span>) <span class="sc">+</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_wrap</span>(<span class="sc">~</span> Varietal, <span class="at">scales =</span> <span class="st">"free_y"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="wine_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="forecast-table" class="level3">
+<h3 class="anchored" data-anchor-id="forecast-table">Forecast Table</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>final_fc <span class="ot">&lt;-</span> wine_fc <span class="sc">|&gt;</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(.model <span class="sc">==</span> <span class="st">"ETS"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Month, Varietal, .mean) <span class="sc">|&gt;</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">.mean =</span> <span class="fu">map_dbl</span>(.mean, as.numeric)) <span class="sc">|&gt;</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> Varietal, <span class="at">values_from =</span> .mean) <span class="sc">|&gt;</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(Month) <span class="sc">|&gt;</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">gt</span>() <span class="sc">|&gt;</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fmt_number</span>(</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">decimals =</span> <span class="dv">0</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>final_fc</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="lwkjtledzc" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#lwkjtledzc table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#lwkjtledzc thead, #lwkjtledzc tbody, #lwkjtledzc tfoot, #lwkjtledzc tr, #lwkjtledzc td, #lwkjtledzc th {
+  border-style: none;
+}
+
+#lwkjtledzc p {
+  margin: 0;
+  padding: 0;
+}
+
+#lwkjtledzc .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#lwkjtledzc .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#lwkjtledzc .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#lwkjtledzc .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#lwkjtledzc .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#lwkjtledzc .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#lwkjtledzc .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#lwkjtledzc .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#lwkjtledzc .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#lwkjtledzc .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#lwkjtledzc .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#lwkjtledzc .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#lwkjtledzc .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#lwkjtledzc .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#lwkjtledzc .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#lwkjtledzc .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#lwkjtledzc .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#lwkjtledzc .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#lwkjtledzc .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lwkjtledzc .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#lwkjtledzc .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#lwkjtledzc .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#lwkjtledzc .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lwkjtledzc .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#lwkjtledzc .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#lwkjtledzc .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#lwkjtledzc .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lwkjtledzc .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#lwkjtledzc .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#lwkjtledzc .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#lwkjtledzc .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#lwkjtledzc .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#lwkjtledzc .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lwkjtledzc .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#lwkjtledzc .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lwkjtledzc .gt_left {
+  text-align: left;
+}
+
+#lwkjtledzc .gt_center {
+  text-align: center;
+}
+
+#lwkjtledzc .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#lwkjtledzc .gt_font_normal {
+  font-weight: normal;
+}
+
+#lwkjtledzc .gt_font_bold {
+  font-weight: bold;
+}
+
+#lwkjtledzc .gt_font_italic {
+  font-style: italic;
+}
+
+#lwkjtledzc .gt_super {
+  font-size: 65%;
+}
+
+#lwkjtledzc .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#lwkjtledzc .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#lwkjtledzc .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#lwkjtledzc .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#lwkjtledzc .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#lwkjtledzc .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#lwkjtledzc .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#lwkjtledzc .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#lwkjtledzc div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Month" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">Month</th>
+<th id="Dry-white" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Dry white</th>
+<th id="Fortified" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Fortified</th>
+<th id="Red" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Red</th>
+<th id="Rose" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Rose</th>
+<th id="Sweet-white" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Sweet white</th>
+<th id="sparkling" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">sparkling</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_center" headers="Month">1994 Jan</td>
+<td class="gt_row gt_right" headers="Dry white">2,568</td>
+<td class="gt_row gt_right" headers="Fortified">1,291</td>
+<td class="gt_row gt_right" headers="Red">1,184</td>
+<td class="gt_row gt_right" headers="Rose">31</td>
+<td class="gt_row gt_right" headers="Sweet white">242</td>
+<td class="gt_row gt_right" headers="sparkling">1,741</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_center" headers="Month">1994 Feb</td>
+<td class="gt_row gt_right" headers="Dry white">2,989</td>
+<td class="gt_row gt_right" headers="Fortified">1,546</td>
+<td class="gt_row gt_right" headers="Red">1,617</td>
+<td class="gt_row gt_right" headers="Rose">37</td>
+<td class="gt_row gt_right" headers="Sweet white">232</td>
+<td class="gt_row gt_right" headers="sparkling">1,655</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_center" headers="Month">1994 Mar</td>
+<td class="gt_row gt_right" headers="Dry white">3,367</td>
+<td class="gt_row gt_right" headers="Fortified">1,886</td>
+<td class="gt_row gt_right" headers="Red">1,911</td>
+<td class="gt_row gt_right" headers="Rose">41</td>
+<td class="gt_row gt_right" headers="Sweet white">246</td>
+<td class="gt_row gt_right" headers="sparkling">1,980</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_center" headers="Month">1994 Apr</td>
+<td class="gt_row gt_right" headers="Dry white">3,076</td>
+<td class="gt_row gt_right" headers="Fortified">2,033</td>
+<td class="gt_row gt_right" headers="Red">2,082</td>
+<td class="gt_row gt_right" headers="Rose">38</td>
+<td class="gt_row gt_right" headers="Sweet white">247</td>
+<td class="gt_row gt_right" headers="sparkling">1,888</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_center" headers="Month">1994 May</td>
+<td class="gt_row gt_right" headers="Dry white">3,233</td>
+<td class="gt_row gt_right" headers="Fortified">2,412</td>
+<td class="gt_row gt_right" headers="Red">2,429</td>
+<td class="gt_row gt_right" headers="Rose">38</td>
+<td class="gt_row gt_right" headers="Sweet white">230</td>
+<td class="gt_row gt_right" headers="sparkling">1,661</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_center" headers="Month">1994 Jun</td>
+<td class="gt_row gt_right" headers="Dry white">3,122</td>
+<td class="gt_row gt_right" headers="Fortified">2,472</td>
+<td class="gt_row gt_right" headers="Red">2,473</td>
+<td class="gt_row gt_right" headers="Rose">39</td>
+<td class="gt_row gt_right" headers="Sweet white">218</td>
+<td class="gt_row gt_right" headers="sparkling">1,495</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_center" headers="Month">1994 Jul</td>
+<td class="gt_row gt_right" headers="Dry white">3,621</td>
+<td class="gt_row gt_right" headers="Fortified">2,946</td>
+<td class="gt_row gt_right" headers="Red">3,043</td>
+<td class="gt_row gt_right" headers="Rose">45</td>
+<td class="gt_row gt_right" headers="Sweet white">305</td>
+<td class="gt_row gt_right" headers="sparkling">2,033</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_center" headers="Month">1994 Aug</td>
+<td class="gt_row gt_right" headers="Dry white">4,065</td>
+<td class="gt_row gt_right" headers="Fortified">2,733</td>
+<td class="gt_row gt_right" headers="Red">3,082</td>
+<td class="gt_row gt_right" headers="Rose">44</td>
+<td class="gt_row gt_right" headers="Sweet white">317</td>
+<td class="gt_row gt_right" headers="sparkling">2,459</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_center" headers="Month">1994 Sep</td>
+<td class="gt_row gt_right" headers="Dry white">3,452</td>
+<td class="gt_row gt_right" headers="Fortified">2,031</td>
+<td class="gt_row gt_right" headers="Red">2,353</td>
+<td class="gt_row gt_right" headers="Rose">42</td>
+<td class="gt_row gt_right" headers="Sweet white">294</td>
+<td class="gt_row gt_right" headers="sparkling">2,218</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_center" headers="Month">1994 Oct</td>
+<td class="gt_row gt_right" headers="Dry white">3,631</td>
+<td class="gt_row gt_right" headers="Fortified">1,881</td>
+<td class="gt_row gt_right" headers="Red">2,180</td>
+<td class="gt_row gt_right" headers="Rose">42</td>
+<td class="gt_row gt_right" headers="Sweet white">290</td>
+<td class="gt_row gt_right" headers="sparkling">3,147</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_center" headers="Month">1994 Nov</td>
+<td class="gt_row gt_right" headers="Dry white">4,413</td>
+<td class="gt_row gt_right" headers="Fortified">2,194</td>
+<td class="gt_row gt_right" headers="Red">2,372</td>
+<td class="gt_row gt_right" headers="Rose">49</td>
+<td class="gt_row gt_right" headers="Sweet white">354</td>
+<td class="gt_row gt_right" headers="sparkling">4,267</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_center" headers="Month">1994 Dec</td>
+<td class="gt_row gt_right" headers="Dry white">4,925</td>
+<td class="gt_row gt_right" headers="Fortified">2,394</td>
+<td class="gt_row gt_right" headers="Red">2,539</td>
+<td class="gt_row gt_right" headers="Rose">65</td>
+<td class="gt_row gt_right" headers="Sweet white">416</td>
+<td class="gt_row gt_right" headers="sparkling">5,917</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
