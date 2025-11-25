@@ -1,10 +1,13 @@
 ---
-title: "Untitled"
+title: "Assignment 5.1: Data Storytelling with Shiny"
+author: "April Chia"
 format: html
+runtime: shiny
 ---
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(shiny)
 library(fpp3)
 library(tidyverse)
 library(gt)
@@ -57,9 +60,7 @@ wine_forecasts <- wine_models |>
   forecast(h = "12 months")
 ```
 
-Evaluate
-Visualize
-Document
+## Evaluate, Visualize, Document
 
 ```{r}
 # UI controls and placeholders (rendered in document)
