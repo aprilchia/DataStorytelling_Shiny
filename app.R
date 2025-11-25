@@ -66,35 +66,43 @@ ui <- navbarPage(
   
   tabPanel(
     "Modeling",
+    # Top row: display controls (left) + model spec (right)
     fluidRow(
       column(
-        width = 12,
+        width = 3,
         card(
           card_header("Display controls"),
           checkboxInput("show_model_spec", "Show model specification", value = TRUE),
           checkboxInput("show_train_acc", "Show training accuracy", value = TRUE),
-          actionButton("fit_models", "Fit models")  # <- added so wine_models() can be triggered
-        ),
-        br(),
-        # Model spec card appears only when checkbox checked
+          actionButton("fit_models", "Fit models")
+        )
+      ),
+      column(
+        width = 9,
         conditionalPanel(
           "input.show_model_spec == true",
           card(
             card_header("Model Specifications"),
             verbatimTextOutput("model_specs")
           )
-        ),
-        br(),
-        # Training accuracy card appears only when checkbox checked
+        )
+      )
+    ),
+    br(),
+    # Bottom row: accuracy tables side-by-side
+    fluidRow(
+      column(
+        width = 6,
         conditionalPanel(
           "input.show_train_acc == true",
           card(
             card_header("Training Accuracy"),
             uiOutput("training_accuracy_out")
           )
-        ),
-        br(),
-        # Forecast accuracy (validation) always visible
+        )
+      ),
+      column(
+        width = 6,
         card(
           card_header("Forecast Accuracy (validation)"),
           uiOutput("forecast_accuracy_out")
@@ -125,6 +133,31 @@ ui <- navbarPage(
         card(
           card_header("Forecast table"),
           uiOutput("forecast_table_out")
+        )
+      )
+    )
+  ),
+  
+  tabPanel(
+    "About",
+    fluidRow(
+      column(
+        width = 12,
+        card(
+          card_header("About this app"),
+          tags$div(
+            tags$p("Data source: AustralianWines.csv (monthly sales by varietal)."),
+            tags$p("Modeling choices: three models are fit on the training window (TSLM: trend + season, ETS: exponential smoothing, ARIMA). Training/validation split uses 1993 Dec as the cutoff."),
+            tags$p("Forecasting: forecasts are produced for the interactive horizon (H) and validation forecasts are computed over the held-out validation window."),
+            tags$h5("Reproduce figures"),
+            tags$ol(
+              tags$li("Install required packages: fpp3, tidyverse, gt, bslib, shiny."),
+              tags$li("Place AustralianWines.csv in the project root."),
+              tags$li("Start the app (run app.R). Use the Modeling tab to inspect model specs and accuracy."),
+              tags$li("Adjust horizon and varietal selections on the Visualization/Forecast tabs to regenerate plots and tables.")
+            ),
+            tags$p("Notes: training accuracy is computed from the fitted models (in-sample) and forecast accuracy uses validation forecasts aligned to the validation tsibble.")
+          )
         )
       )
     )
@@ -219,13 +252,13 @@ server <- function(input, output, session) {
      htmltools::HTML(gt::as_raw_html(acc_val_tab))
    })
   
-  # Forecasts and validation accuracy
-  wine_fc <- eventReactive(input$run_forecast, {
+  # Forecasts: run automatically (reactive) using current horizon input
+  wine_fc <- reactive({
     wm <- wine_models()
     req(wm)
     h <- as.integer(input$h_forecast)
     wm |> forecast(h = h)
-  }, ignoreNULL = FALSE)
+  })
   
   validation_fc <- reactive({
     wm <- wine_models()
@@ -249,7 +282,6 @@ server <- function(input, output, session) {
   
   # Forecast table (for chosen model)
   output$forecast_table_out <- renderUI({
-    req(input$run_forecast)
     fc <- wine_fc()
     req(fc)
     gt_tab <- fc |>
