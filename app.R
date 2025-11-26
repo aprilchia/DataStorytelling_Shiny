@@ -3,12 +3,7 @@ library(bslib)
 library(fpp3)
 library(tidyverse)
 library(gt)
-urca_available <- requireNamespace("urca", quietly = TRUE)
-if (urca_available) {
-  library(urca)
-} else {
-  packageStartupMessage("Package 'urca' not installed. Accuracy metrics may show NaN. Install 'urca' to avoid this.")
-}
+library(urca)
 
 # Load and wrangle data (from wine.qmd)
 aus_wine <- read_csv(here::here("AustralianWines.csv"), na = "*",

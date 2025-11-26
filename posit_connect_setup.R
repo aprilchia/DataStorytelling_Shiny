@@ -1,1 +1,1 @@
-rsconnect::writeManifest()
+rsconnect::writeManifest(appFiles = c("app.R"))
