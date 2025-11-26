@@ -3,6 +3,7 @@ library(bslib)
 library(fpp3)
 library(tidyverse)
 library(gt)
+library(urca)  # <- added to ensure urca namespace is available and avoid NaN in metrics
 
 # Load and wrangle data (from wine.qmd)
 aus_wine <- read_csv(here::here("AustralianWines.csv"), na = "*",
