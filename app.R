@@ -211,7 +211,7 @@ server <- function(input, output, session) {
       model(
         TSLM = TSLM(Sales ~ trend() + season()),
         ETS = ETS(Sales),
-        ARIMA = ARIMA(Sales, stepwise = FALSE, approximation = FALSE)
+        ARIMA = ARIMA(Sales)
       )
   })
   
@@ -244,7 +244,7 @@ server <- function(input, output, session) {
      req(wm)
      fc <- wine_fc()
      req(fc)
-     acc_val <- fc |> accuracy(validation)
+     acc_val <- fc |> accuracy(aus_wine)
      acc_val_tab <- acc_val |>
        select(Varietal, .model, RMSE, MAE, MAPE) |>
        arrange(.model, RMSE) |>
