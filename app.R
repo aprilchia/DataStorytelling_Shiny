@@ -211,7 +211,7 @@ server <- function(input, output, session) {
       model(
         TSLM = TSLM(Sales ~ trend() + season()),
         ETS = ETS(Sales),
-        ARIMA = ARIMA(Sales)
+        ARIMA = ARIMA(Sales, stepwise = FALSE, approximation = FALSE)
       )
   })
   
